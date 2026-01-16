@@ -1,0 +1,46 @@
+[package]
+name = "runic"
+version = "0.1.0"
+edition = "2024"
+description = "TUI for Foundry and Hardhat smart contract interaction"
+authors = ["Rachit Srivastava"]
+license = "MIT"
+
+[dependencies]
+# TUI
+ratatui = "0.29"
+crossterm = "0.28"
+
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# Ethereum
+alloy = { version = "1.0", features = ["full"] }
+
+# Secure credential storage
+keyring = "3"
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+
+# CLI
+clap = { version = "4", features = ["derive"] }
+
+# Utilities
+dirs = "5"
+eyre = "0.6"
+color-eyre = "0.6"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Security
+zeroize = { version = "1", features = ["derive"] }
+
+# Encoding
+hex = "0.4"
+
+[profile.release]
+lto = true
+strip = true
