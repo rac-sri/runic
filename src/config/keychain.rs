@@ -4,7 +4,7 @@ use zeroize::Zeroizing;
 
 const SERVICE_NAME: &str = "runic";
 
-/// Manager for secure credential storage using the OS keychain
+/// Manager for secure credential storage using OS keychain
 pub struct KeychainManager {
     service: String,
 }
@@ -19,13 +19,13 @@ impl KeychainManager {
     /// Store a secret in the keychain
     pub fn set(&self, key: &str, value: &str) -> Result<()> {
         let entry = Entry::new(&self.service, key)
-            .wrap_err_with(|| format!("Failed to create keychain entry for {}", key))?;
+            .wrap_err_with(|| format!("Failed to create keychain entry for '{}'. Check keychain access permissions.", key))?;
 
         entry
             .set_password(value)
-            .wrap_err_with(|| format!("Failed to store secret for {}", key))?;
+            .wrap_err_with(|| format!("Failed to store secret for '{}'. The keychain may have denied access or the entry already exists with different permissions.", key))?;
 
-        tracing::info!("Stored secret in keychain: {}", key);
+        tracing::info!("Stored secret in keychain: service={}, key={}", self.service, key);
         Ok(())
     }
 
@@ -81,24 +81,64 @@ impl Default for KeychainManager {
 }
 
 /// Store a private key securely
-/// The key should be a hex string (with or without 0x prefix)
+/// Automatically detects and normalizes 0x prefix
 pub fn store_private_key(name: &str, key: &str) -> Result<()> {
-    // Validate key format
-    let clean_key = key.strip_prefix("0x").unwrap_or(key);
+    // Validate and normalize key format
+    let clean_key = key.trim().strip_prefix("0x").unwrap_or(key.trim());
+    let clean_name = name.trim();
+    
     if clean_key.len() != 64 || !clean_key.chars().all(|c| c.is_ascii_hexdigit()) {
         return Err(eyre::eyre!(
-            "Invalid private key format: expected 64 hex characters"
+            "Invalid private key format: expected 64 hex characters (with or without 0x prefix)"
         ));
     }
 
+    // Always store with 0x prefix for consistency
+    let key_to_store = format!("0x{}", clean_key);
+
     let km = KeychainManager::new();
-    km.set(name, key)
+    km.set(clean_name, &key_to_store)
 }
 
 /// Retrieve a private key from secure storage
 pub fn get_private_key(name: &str) -> Result<Option<Zeroizing<String>>> {
     let km = KeychainManager::new();
     km.get_zeroizing(name)
+}
+
+/// Store an RPC URL securely
+pub fn store_rpc_url(name: &str, url: &str) -> Result<()> {
+    // Validate URL format
+    if !url.starts_with("http://") && !url.starts_with("https://") {
+        return Err(eyre::eyre!(
+            "Invalid RPC URL format: must start with http:// or https://"
+        ));
+    }
+
+    let km = KeychainManager::new();
+    let key = format!("rpc:{}", name);
+    km.set(&key, url)
+}
+
+/// Retrieve an RPC URL from secure storage
+pub fn get_rpc_url(name: &str) -> Result<Option<String>> {
+    let km = KeychainManager::new();
+    let key = format!("rpc:{}", name);
+    km.get(&key)
+}
+
+/// Store an API key securely
+pub fn store_api_key(service: &str, key: &str) -> Result<()> {
+    let km = KeychainManager::new();
+    let keychain_key = format!("api:{}", service);
+    km.set(&keychain_key, key)
+}
+
+/// Retrieve an API key from secure storage
+pub fn get_api_key(service: &str) -> Result<Option<String>> {
+    let km = KeychainManager::new();
+    let keychain_key = format!("api:{}", service);
+    km.get(&keychain_key)
 }
 
 #[cfg(test)]

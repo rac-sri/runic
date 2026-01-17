@@ -45,9 +45,7 @@ impl ContractCaller {
         let key_str = private_key.as_str();
         let clean_key = key_str.strip_prefix("0x").unwrap_or(key_str);
 
-        let signer: PrivateKeySigner = clean_key
-            .parse()
-            .wrap_err("Failed to parse private key")?;
+        let signer: PrivateKeySigner = clean_key.parse().wrap_err("Failed to parse private key")?;
 
         self.signer = Some(signer);
         Ok(self)
@@ -76,10 +74,7 @@ impl ContractCaller {
             .to(address)
             .input(calldata.into());
 
-        let result = provider
-            .call(tx)
-            .await
-            .wrap_err("Call failed")?;
+        let result = provider.call(tx).await.wrap_err("Call failed")?;
 
         // Decode the result
         let decoded = decode_result(function, &result)?;

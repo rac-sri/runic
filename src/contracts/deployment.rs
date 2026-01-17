@@ -5,7 +5,7 @@ use eyre::{Result, WrapErr};
 use serde::Deserialize;
 use serde_json::Value;
 
-use super::abi::{parse_abi, ContractFunction};
+use super::abi::{ContractFunction, parse_abi};
 use crate::project::Project;
 
 /// Represents a deployed contract
@@ -60,7 +60,10 @@ impl DeploymentManager {
         self.deployments.clear();
 
         if !self.broadcast_dir.exists() {
-            tracing::info!("Broadcast directory does not exist: {:?}", self.broadcast_dir);
+            tracing::info!(
+                "Broadcast directory does not exist: {:?}",
+                self.broadcast_dir
+            );
             return Ok(());
         }
 
@@ -93,8 +96,8 @@ impl DeploymentManager {
     }
 
     fn parse_run_file(&mut self, path: &PathBuf) -> Result<()> {
-        let content = fs::read_to_string(path)
-            .wrap_err_with(|| format!("Failed to read {:?}", path))?;
+        let content =
+            fs::read_to_string(path).wrap_err_with(|| format!("Failed to read {:?}", path))?;
 
         let run: BroadcastRun = serde_json::from_str(&content)
             .wrap_err_with(|| format!("Failed to parse {:?}", path))?;

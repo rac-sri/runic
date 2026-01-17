@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use eyre::{eyre, Result};
+use eyre::{Result, eyre};
 use serde::{Deserialize, Serialize};
 
 use super::{Project, ProjectConfig, ProjectType};

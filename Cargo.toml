@@ -18,7 +18,7 @@ tokio = { version = "1", features = ["full"] }
 alloy = { version = "1.0", features = ["full"] }
 
 # Secure credential storage
-keyring = "3"
+keyring = { version = "3", features = ["apple-native"] }
 
 # Serialization
 serde = { version = "1", features = ["derive"] }
@@ -27,6 +27,7 @@ toml = "0.8"
 
 # CLI
 clap = { version = "4", features = ["derive"] }
+dialoguer = "0.11"
 
 # Utilities
 dirs = "5"
@@ -40,6 +41,10 @@ zeroize = { version = "1", features = ["derive"] }
 
 # Encoding
 hex = "0.4"
+
+# Platform-specific
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
 
 [profile.release]
 lto = true

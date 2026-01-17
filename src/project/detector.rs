@@ -1,8 +1,8 @@
 use std::path::Path;
 
-use eyre::{eyre, Result};
+use eyre::{Result, eyre};
 
-use super::{foundry, hardhat, Project, ProjectType};
+use super::{Project, ProjectType, foundry, hardhat};
 
 /// Detect the project type based on configuration files present in the directory
 pub fn detect(path: &Path) -> Result<Project> {

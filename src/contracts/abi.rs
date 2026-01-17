@@ -90,8 +90,7 @@ fn parse_params(params: Option<&Value>) -> Vec<FunctionParam> {
 
 /// Parse ABI from a string
 pub fn parse_abi_string(abi_str: &str) -> Result<Vec<ContractFunction>> {
-    let abi_json: Value =
-        serde_json::from_str(abi_str).wrap_err("Failed to parse ABI as JSON")?;
+    let abi_json: Value = serde_json::from_str(abi_str).wrap_err("Failed to parse ABI as JSON")?;
     parse_abi(&abi_json)
 }
 

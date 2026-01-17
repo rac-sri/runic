@@ -9,7 +9,7 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph},
 };
 
-use crate::app::{App, View};
+use crate::app::{App, InteractFocus, ScriptPhase, View};
 
 /// Main draw function - dispatches to appropriate view
 pub fn draw(frame: &mut Frame, app: &App) {
@@ -52,12 +52,17 @@ fn draw_header(frame: &mut Frame, app: &App, area: Rect) {
 fn draw_footer(frame: &mut Frame, app: &App, area: Rect) {
     let help_text = match &app.view {
         View::Home => "[i] Interact  [s] Scripts  [c] Config  [q] Quit",
-        View::Interact(state) if state.input_mode => {
-            "[Tab] Next field  [Enter] Submit  [Esc] Cancel"
-        }
-        View::Interact(_) => "[↑/k] Up  [↓/j] Down  [Enter] Select  [Esc] Back",
-        View::Scripts(state) if state.running => "[Esc] Cancel",
-        View::Scripts(_) => "[↑/k] Up  [↓/j] Down  [Enter] Run  [Esc] Back",
+        View::Interact(state) => match state.focus {
+            InteractFocus::Deployments => "[↑↓] Navigate  [Tab/→/Enter] Functions  [Esc] Back",
+            InteractFocus::Functions => "[↑↓] Navigate  [Enter] Call  [←/Esc] Deployments",
+            InteractFocus::Inputs => "[↑↓/Tab] Navigate  [Enter] Submit/Next  [Esc] Cancel",
+        },
+        View::Scripts(state) => match state.phase {
+            ScriptPhase::SelectScript => "[↑/k] Up  [↓/j] Down  [Enter] Run  [Esc] Back",
+            ScriptPhase::SelectNetwork { .. } => "[↑/k] Up  [↓/j] Down  [Enter] Confirm  [Esc] Cancel",
+            ScriptPhase::SelectWallet { .. } => "[↑/k] Up  [↓/j] Down  [Enter] Run  [Esc] Back",
+            ScriptPhase::Running => "[Esc] Dismiss output",
+        },
         View::Config => "[Esc] Back",
     };
 

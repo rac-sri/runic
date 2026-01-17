@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
-use eyre::{eyre, Result, WrapErr};
+use eyre::{Result, WrapErr, eyre};
 use serde::{Deserialize, Serialize};
 
 use super::{Project, ProjectConfig, ProjectType};
@@ -60,24 +60,15 @@ impl FoundryConfig {
     }
 
     pub fn src_dir(&self) -> &str {
-        self.default_profile()
-            .src
-            .as_deref()
-            .unwrap_or("src")
+        self.default_profile().src.as_deref().unwrap_or("src")
     }
 
     pub fn out_dir(&self) -> &str {
-        self.default_profile()
-            .out
-            .as_deref()
-            .unwrap_or("out")
+        self.default_profile().out.as_deref().unwrap_or("out")
     }
 
     pub fn script_dir(&self) -> &str {
-        self.default_profile()
-            .script
-            .as_deref()
-            .unwrap_or("script")
+        self.default_profile().script.as_deref().unwrap_or("script")
     }
 
     pub fn broadcast_dir(&self) -> &str {
@@ -99,8 +90,8 @@ pub fn load_project(path: &Path) -> Result<Project> {
     let config_content = fs::read_to_string(&config_path)
         .wrap_err_with(|| format!("Failed to read {:?}", config_path))?;
 
-    let config: FoundryConfig = toml::from_str(&config_content)
-        .wrap_err("Failed to parse foundry.toml")?;
+    let config: FoundryConfig =
+        toml::from_str(&config_content).wrap_err("Failed to parse foundry.toml")?;
 
     // Extract project name from directory name
     let name = path
@@ -149,6 +140,11 @@ mainnet = "https://eth-mainnet.g.alchemy.com/v2/xxx"
 sepolia = "https://eth-sepolia.g.alchemy.com/v2/xxx"
 "#;
         let config: FoundryConfig = toml::from_str(content).unwrap();
-        assert!(config.default_profile().rpc_endpoints.contains_key("mainnet"));
+        assert!(
+            config
+                .default_profile()
+                .rpc_endpoints
+                .contains_key("mainnet")
+        );
     }
 }

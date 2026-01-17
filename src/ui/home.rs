@@ -23,7 +23,9 @@ fn draw_project_info(frame: &mut Frame, app: &App, area: Rect) {
             Span::styled("Type: ", Style::default().fg(Color::DarkGray)),
             Span::styled(
                 project.project_type.to_string(),
-                Style::default().fg(Color::Green).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(Color::Green)
+                    .add_modifier(Modifier::BOLD),
             ),
         ]),
         Line::from(vec![
@@ -81,21 +83,27 @@ fn draw_quick_stats(frame: &mut Frame, app: &App, area: Rect) {
         ListItem::new(Line::from(vec![
             Span::styled(
                 format!("{:>3}", deployments_count),
-                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
             ),
             Span::raw(" deployments found"),
         ])),
         ListItem::new(Line::from(vec![
             Span::styled(
                 format!("{:>3}", scripts_count),
-                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
             ),
             Span::raw(" scripts available"),
         ])),
         ListItem::new(Line::from(vec![
             Span::styled(
                 format!("{:>3}", networks_count),
-                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
             ),
             Span::raw(" networks configured"),
         ])),

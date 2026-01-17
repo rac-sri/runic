@@ -102,7 +102,9 @@ impl AppConfig {
 
     /// Get the config file path
     pub fn config_path(&self) -> Option<PathBuf> {
-        self.config_path.clone().or_else(|| Self::default_config_path().ok())
+        self.config_path
+            .clone()
+            .or_else(|| Self::default_config_path().ok())
     }
 
     /// Get the default configuration file path
@@ -151,14 +153,46 @@ impl AppConfig {
             None => return Ok(None),
         };
 
-        if let Some(keychain_ref) = &wallet.keychain {
+        let key_opt = if let Some(keychain_ref) = &wallet.keychain {
+            // Strip "runic:" prefix if present
+            let key = keychain_ref
+                .trim()
+                .strip_prefix("runic:")
+                .unwrap_or(keychain_ref.trim());
             use super::KeychainManager;
             let km = KeychainManager::new();
-            km.get(keychain_ref).map(|opt| opt.map(zeroize::Zeroizing::new))
+            km.get(key)?
         } else if let Some(env_var) = &wallet.env_var {
-            Ok(std::env::var(env_var).ok().map(zeroize::Zeroizing::new))
+            std::env::var(env_var).ok()
         } else {
-            Ok(None)
+            None
+        };
+
+        match key_opt {
+            Some(key) => {
+                let trimmed = key.trim();
+                if trimmed.is_empty() {
+                    Ok(None)
+                } else {
+                    Ok(Some(zeroize::Zeroizing::new(trimmed.to_string())))
+                }
+            }
+            None => Ok(None),
+        }
+    }
+
+    /// Resolve an RPC URL value (handling keychain references)
+    pub fn resolve_rpc_url(&self, name: &str) -> Result<Option<String>> {
+        let network = match self.networks.get(name) {
+            Some(n) => n,
+            None => return Ok(None),
+        };
+
+        if let Some(keychain_ref) = network.rpc_url.strip_prefix("keychain:") {
+            use super::get_rpc_url;
+            get_rpc_url(keychain_ref)
+        } else {
+            Ok(Some(network.rpc_url.clone()))
         }
     }
 }
