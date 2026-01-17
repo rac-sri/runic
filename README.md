@@ -1,8 +1,8 @@
 # Runic
 
 A powerful Terminal User Interface (TUI) for interacting with smart contracts deployed via [Foundry](https://book.getfoundry.sh/) and [Hardhat](https://hardhat.org/). Execute contract functions, run deployment scripts, and manage blockchain networks and wallets all from your terminal.
+<img width="1672" height="1340" alt="Screenshot 2026-01-18 at 12 46 41 AM" src="https://github.com/user-attachments/assets/ef0b8db3-769b-4900-a9ca-fcb270fab71b" /><img width="1672" height="1340" alt="Screenshot 2026-01-18 at 12 46 57 AM" src="https://github.com/user-attachments/assets/f7fc8785-7c9b-4d35-814c-41b6cade5ce0" />
 
-![Runic Demo](https://via.placeholder.com/800x400/2d3748/61dafb?text=Runic+TUI+Demo)
 
 ## ✨ Features
 
