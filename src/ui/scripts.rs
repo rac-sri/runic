@@ -105,11 +105,7 @@ fn draw_script_output(frame: &mut Frame, app: &App, state: &ScriptsState, area: 
                 frame,
                 area,
                 " Select Network ",
-                &app.config
-                    .networks
-                    .keys()
-                    .cloned()
-                    .collect::<Vec<_>>(),
+                &app.config.networks.keys().cloned().collect::<Vec<_>>(),
                 *selected,
                 "↑↓ navigate • Enter confirm • Esc cancel",
             );
@@ -130,10 +126,7 @@ fn draw_script_output(frame: &mut Frame, app: &App, state: &ScriptsState, area: 
         }
 
         ScriptPhase::Running => {
-            let content = state
-                .output
-                .as_deref()
-                .unwrap_or("Running script...");
+            let content = state.output.as_deref().unwrap_or("Running script...");
 
             let paragraph = Paragraph::new(content)
                 .style(Style::default().fg(Color::Yellow))

@@ -56,10 +56,13 @@ fn draw_footer(frame: &mut Frame, app: &App, area: Rect) {
             InteractFocus::Deployments => "[↑↓] Navigate  [Tab/→/Enter] Functions  [Esc] Back",
             InteractFocus::Functions => "[↑↓] Navigate  [Enter] Call  [←/Esc] Deployments",
             InteractFocus::Inputs => "[↑↓/Tab] Navigate  [Enter] Submit/Next  [Esc] Cancel",
+            InteractFocus::WalletSelection => "[↑↓] Navigate  [Enter] Select  [Esc] Cancel",
         },
         View::Scripts(state) => match state.phase {
             ScriptPhase::SelectScript => "[↑/k] Up  [↓/j] Down  [Enter] Run  [Esc] Back",
-            ScriptPhase::SelectNetwork { .. } => "[↑/k] Up  [↓/j] Down  [Enter] Confirm  [Esc] Cancel",
+            ScriptPhase::SelectNetwork { .. } => {
+                "[↑/k] Up  [↓/j] Down  [Enter] Confirm  [Esc] Cancel"
+            }
             ScriptPhase::SelectWallet { .. } => "[↑/k] Up  [↓/j] Down  [Enter] Run  [Esc] Back",
             ScriptPhase::Running => "[Esc] Dismiss output",
         },

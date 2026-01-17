@@ -56,7 +56,8 @@ impl DeploymentManager {
     }
 
     /// Scan for deployments in the broadcast directory
-    pub fn scan(&mut self) -> Result<()> {
+    /// Returns a list of chain IDs that don't have configured networks
+    pub fn scan(&mut self) -> Result<Vec<u64>> {
         self.deployments.clear();
 
         if !self.broadcast_dir.exists() {
@@ -64,7 +65,7 @@ impl DeploymentManager {
                 "Broadcast directory does not exist: {:?}",
                 self.broadcast_dir
             );
-            return Ok(());
+            return Ok(vec![]);
         }
 
         // Walk through broadcast directory structure:
@@ -72,7 +73,17 @@ impl DeploymentManager {
         self.scan_broadcast_dir(&self.broadcast_dir.clone())?;
 
         tracing::info!("Found {} deployments", self.deployments.len());
-        Ok(())
+
+        // Return list of unique chain IDs found in deployments
+        let chain_ids: Vec<u64> = self
+            .deployments
+            .iter()
+            .map(|d| d.chain_id)
+            .collect::<std::collections::HashSet<_>>()
+            .into_iter()
+            .collect();
+
+        Ok(chain_ids)
     }
 
     fn scan_broadcast_dir(&mut self, dir: &PathBuf) -> Result<()> {
@@ -179,7 +190,7 @@ impl DeploymentManager {
     }
 }
 
-fn chain_id_to_network(chain_id: u64) -> String {
+pub fn chain_id_to_network(chain_id: u64) -> String {
     match chain_id {
         1 => "mainnet".to_string(),
         5 => "goerli".to_string(),

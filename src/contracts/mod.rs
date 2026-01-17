@@ -3,5 +3,5 @@ mod caller;
 mod deployment;
 
 pub use abi::{ContractFunction, FunctionParam, parse_abi};
-pub use caller::ContractCaller;
-pub use deployment::{Deployment, DeploymentManager};
+pub use caller::{CallResult, ContractCaller};
+pub use deployment::{Deployment, DeploymentManager, chain_id_to_network};

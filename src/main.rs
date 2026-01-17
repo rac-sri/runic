@@ -84,7 +84,7 @@ async fn main() -> Result<()> {
 }
 
 fn test_keychain() -> Result<()> {
-    use config::{KeychainManager, store_private_key, get_private_key};
+    use config::{KeychainManager, get_private_key, store_private_key};
 
     println!("Testing keychain functionality...\n");
 
@@ -105,8 +105,13 @@ fn test_keychain() -> Result<()> {
     // Test 2: Retrieve the value
     println!("2. Retrieving test value...");
     match km.get(test_key) {
-        Ok(Some(v)) if v == test_value => println!("   ✓ Successfully retrieved and verified value"),
-        Ok(Some(v)) => println!("   ✗ Retrieved value doesn't match: got '{}', expected '{}'", v, test_value),
+        Ok(Some(v)) if v == test_value => {
+            println!("   ✓ Successfully retrieved and verified value")
+        }
+        Ok(Some(v)) => println!(
+            "   ✗ Retrieved value doesn't match: got '{}', expected '{}'",
+            v, test_value
+        ),
         Ok(None) => println!("   ✗ Value not found in keychain"),
         Err(e) => println!("   ✗ Failed to retrieve: {}", e),
     }
@@ -143,9 +148,15 @@ fn test_keychain() -> Result<()> {
     match get_private_key(test_wallet) {
         Ok(Some(pk)) => {
             if pk.starts_with("0x") && pk.len() == 66 {
-                println!("   ✓ Successfully retrieved private key (correctly formatted with 0x prefix)");
+                println!(
+                    "   ✓ Successfully retrieved private key (correctly formatted with 0x prefix)"
+                );
             } else {
-                println!("   ✗ Private key format issue: len={}, starts_with_0x={}", pk.len(), pk.starts_with("0x"));
+                println!(
+                    "   ✗ Private key format issue: len={}, starts_with_0x={}",
+                    pk.len(),
+                    pk.starts_with("0x")
+                );
             }
         }
         Ok(None) => println!("   ✗ Private key not found"),

@@ -143,15 +143,15 @@ fn draw_wallets(frame: &mut Frame, app: &App, area: Rect) {
     let items: Vec<ListItem> = wallets
         .iter()
         .map(|(name, wallet)| {
-                let keychain_status = if let Some(keychain_ref) = &wallet.keychain {
-                    let key = keychain_ref.strip_prefix("runic:").unwrap_or(keychain_ref);
-                    match crate::config::get_private_key(key).ok().flatten() {
-                        Some(_) => "Stored (Keychain)",
-                        None => "Missing (Keychain)",
-                    }
-                } else {
-                    "No Keychain"
-                };
+            let keychain_status = if let Some(keychain_ref) = &wallet.keychain {
+                let key = keychain_ref.strip_prefix("runic:").unwrap_or(keychain_ref);
+                match crate::config::get_private_key(key).ok().flatten() {
+                    Some(_) => "Stored (Keychain)",
+                    None => "Missing (Keychain)",
+                }
+            } else {
+                "No Keychain"
+            };
 
             let label = wallet.label.as_deref().unwrap_or(name);
             ListItem::new(format!("{} {} ({})", keychain_status, label, name))

@@ -130,6 +130,14 @@ impl AppConfig {
         }
     }
 
+    /// Get network by chain ID
+    pub fn get_network_by_chain_id(&self, chain_id: u64) -> Option<(&String, &NetworkConfig)> {
+        self.networks
+            .iter()
+            .find(|(_, config)| config.chain_id == Some(chain_id))
+            .map(|(name, config)| (name, config))
+    }
+
     /// Resolve an API key value (handling keychain references)
     pub fn resolve_api_key(&self, name: &str) -> Result<Option<String>> {
         let value = match self.api_keys.get(name) {

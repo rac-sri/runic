@@ -18,14 +18,22 @@ impl KeychainManager {
 
     /// Store a secret in the keychain
     pub fn set(&self, key: &str, value: &str) -> Result<()> {
-        let entry = Entry::new(&self.service, key)
-            .wrap_err_with(|| format!("Failed to create keychain entry for '{}'. Check keychain access permissions.", key))?;
+        let entry = Entry::new(&self.service, key).wrap_err_with(|| {
+            format!(
+                "Failed to create keychain entry for '{}'. Check keychain access permissions.",
+                key
+            )
+        })?;
 
         entry
             .set_password(value)
             .wrap_err_with(|| format!("Failed to store secret for '{}'. The keychain may have denied access or the entry already exists with different permissions.", key))?;
 
-        tracing::info!("Stored secret in keychain: service={}, key={}", self.service, key);
+        tracing::info!(
+            "Stored secret in keychain: service={}, key={}",
+            self.service,
+            key
+        );
         Ok(())
     }
 
@@ -86,7 +94,7 @@ pub fn store_private_key(name: &str, key: &str) -> Result<()> {
     // Validate and normalize key format
     let clean_key = key.trim().strip_prefix("0x").unwrap_or(key.trim());
     let clean_name = name.trim();
-    
+
     if clean_key.len() != 64 || !clean_key.chars().all(|c| c.is_ascii_hexdigit()) {
         return Err(eyre::eyre!(
             "Invalid private key format: expected 64 hex characters (with or without 0x prefix)"

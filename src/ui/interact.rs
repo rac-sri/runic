@@ -3,7 +3,7 @@ use ratatui::{
     widgets::{Block, Borders, List, ListItem, ListState, Paragraph, Wrap},
 };
 
-use crate::app::{App, InteractFocus, InteractState};
+use crate::app::{App, InteractFocus, InteractState, NetworkInfo};
 use crate::contracts::ContractFunction;
 
 pub fn draw(frame: &mut Frame, app: &App, state: &InteractState, area: Rect) {
@@ -58,7 +58,10 @@ fn draw_deployments_list(frame: &mut Frame, app: &App, state: &InteractState, ar
 
             ListItem::new(Line::from(vec![
                 Span::styled(&d.name, style.add_modifier(Modifier::BOLD)),
-                Span::styled(format!(" ({})", d.network), Style::default().fg(Color::DarkGray)),
+                Span::styled(
+                    format!(" ({})", d.network),
+                    Style::default().fg(Color::DarkGray),
+                ),
             ]))
         })
         .collect();
@@ -84,9 +87,10 @@ fn draw_deployments_list(frame: &mut Frame, app: &App, state: &InteractState, ar
 }
 
 fn draw_right_panel(frame: &mut Frame, app: &App, state: &InteractState, area: Rect) {
-    // If we're in input mode, show input panel, otherwise show functions + result
-    if matches!(state.focus, InteractFocus::Inputs) {
+    if matches!(state.focus, crate::app::InteractFocus::Inputs) {
         draw_input_panel(frame, app, state, area);
+    } else if matches!(state.focus, crate::app::InteractFocus::WalletSelection) {
+        draw_wallet_selection_panel(frame, app, state, area);
     } else {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
@@ -94,7 +98,7 @@ fn draw_right_panel(frame: &mut Frame, app: &App, state: &InteractState, area: R
             .split(area);
 
         draw_functions(frame, app, state, chunks[0]);
-        draw_result(frame, state, chunks[1]);
+        draw_result(frame, app, state, chunks[1]);
     }
 }
 
@@ -151,7 +155,10 @@ fn draw_functions(frame: &mut Frame, app: &App, state: &InteractState, area: Rec
             ListItem::new(Line::from(vec![
                 state_badge,
                 Span::styled(&f.name, style.add_modifier(Modifier::BOLD)),
-                Span::styled(format_function_signature(f), Style::default().fg(Color::DarkGray)),
+                Span::styled(
+                    format_function_signature(f),
+                    Style::default().fg(Color::DarkGray),
+                ),
             ]))
         })
         .collect();
@@ -202,7 +209,9 @@ fn draw_input_panel(frame: &mut Frame, app: &App, state: &InteractState, area: R
         let value = state.input_values.get(i).map(|s| s.as_str()).unwrap_or("");
 
         let label_style = if is_current {
-            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD)
         } else {
             Style::default().fg(Color::DarkGray)
         };
@@ -218,7 +227,10 @@ fn draw_input_panel(frame: &mut Frame, app: &App, state: &InteractState, area: R
         lines.push(Line::from(vec![
             Span::styled(if is_current { "▶ " } else { "  " }, label_style),
             Span::styled(format!("{} ", input.name), label_style),
-            Span::styled(format!("({})", input.param_type), Style::default().fg(Color::DarkGray)),
+            Span::styled(
+                format!("({})", input.param_type),
+                Style::default().fg(Color::DarkGray),
+            ),
         ]));
 
         lines.push(Line::from(vec![
@@ -241,6 +253,68 @@ fn draw_input_panel(frame: &mut Frame, app: &App, state: &InteractState, area: R
     frame.render_widget(paragraph, area);
 }
 
+fn draw_wallet_selection_panel(frame: &mut Frame, app: &App, state: &InteractState, area: Rect) {
+    let wallet_names: Vec<String> = app.config.wallets.keys().cloned().collect();
+    let is_focused = matches!(state.focus, crate::app::InteractFocus::WalletSelection);
+
+    if wallet_names.is_empty() {
+        let paragraph =
+            Paragraph::new("No wallets configured.\n\nAdd a wallet in config (press 'c').")
+                .style(Style::default().fg(Color::DarkGray))
+                .block(
+                    Block::default()
+                        .title(" Select Wallet ")
+                        .borders(Borders::ALL)
+                        .border_style(Style::default().fg(Color::Cyan)),
+                )
+                .wrap(Wrap { trim: true });
+
+        frame.render_widget(paragraph, area);
+        return;
+    }
+
+    let items: Vec<ListItem> = wallet_names
+        .iter()
+        .enumerate()
+        .map(|(i, name)| {
+            let is_selected = state.selected_wallet.as_ref() == Some(name);
+            let style = if is_selected && is_focused {
+                Style::default().bg(Color::Blue).fg(Color::White)
+            } else if is_selected {
+                Style::default().bg(Color::DarkGray).fg(Color::White)
+            } else {
+                Style::default()
+            };
+
+            ListItem::new(Line::from(vec![Span::styled(
+                name,
+                style.add_modifier(Modifier::BOLD),
+            )]))
+        })
+        .collect();
+
+    let mut list_state = ListState::default();
+    if let Some(selected) = &state.selected_wallet {
+        list_state.select(wallet_names.iter().position(|n| n == selected));
+    }
+
+    let list = List::new(items)
+        .block(
+            Block::default()
+                .title(" Select Wallet for Write Transaction ")
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::Cyan)),
+        )
+        .highlight_style(if is_focused {
+            Style::default().bg(Color::Blue)
+        } else {
+            Style::default().bg(Color::DarkGray)
+        })
+        .highlight_symbol(if is_focused { "▶ " } else { "  " });
+
+    frame.render_stateful_widget(list, area, &mut list_state);
+}
+
 fn format_function_signature(f: &ContractFunction) -> String {
     let params: Vec<String> = f
         .inputs
@@ -259,27 +333,153 @@ fn format_function_signature(f: &ContractFunction) -> String {
     format!("({}){}", params.join(", "), returns)
 }
 
-fn draw_result(frame: &mut Frame, state: &InteractState, area: Rect) {
-    let (content, style) = if let Some(err) = &state.error {
-        (err.as_str(), Style::default().fg(Color::Red))
-    } else if let Some(result) = &state.result {
-        (result.as_str(), Style::default().fg(Color::Green))
-    } else {
-        (
-            "Select a function and press Enter to call it",
-            Style::default().fg(Color::DarkGray),
-        )
-    };
+fn draw_result(frame: &mut Frame, app: &App, state: &InteractState, area: Rect) {
+    let mut lines: Vec<Line> = vec![];
 
-    let paragraph = Paragraph::new(content)
-        .style(style)
-        .wrap(Wrap { trim: true })
-        .block(
-            Block::default()
-                .title(" Result ")
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Blue)),
-        );
+    let deployment = app.deployments.deployments.get(state.selected_deployment);
+    let func = deployment.and_then(|d| d.functions.get(state.selected_function));
+
+    if let (Some(deployment), Some(func)) = (deployment, func) {
+        lines.push(Line::from(vec![
+            Span::styled("Contract: ", Style::default().fg(Color::DarkGray)),
+            Span::styled(
+                &deployment.name,
+                Style::default().add_modifier(Modifier::BOLD),
+            ),
+        ]));
+
+        lines.push(Line::from(vec![
+            Span::styled("Address: ", Style::default().fg(Color::DarkGray)),
+            Span::styled(&deployment.address, Style::default().fg(Color::Cyan)),
+        ]));
+
+        if let Some(network_info) = &state.network_info {
+            lines.push(Line::from(vec![
+                Span::styled("Network: ", Style::default().fg(Color::DarkGray)),
+                Span::styled(&network_info.network_name, Style::default().fg(Color::Cyan)),
+                Span::styled(
+                    format!(" (Chain ID: {})", network_info.chain_id),
+                    Style::default().fg(Color::DarkGray),
+                ),
+            ]));
+            lines.push(Line::from(vec![
+                Span::styled("RPC: ", Style::default().fg(Color::DarkGray)),
+                Span::styled(
+                    network_info.rpc_url.clone(),
+                    Style::default().fg(Color::DarkGray),
+                ),
+            ]));
+        }
+
+        lines.push(Line::from(vec![
+            Span::styled("Function: ", Style::default().fg(Color::DarkGray)),
+            Span::styled(&func.name, Style::default().add_modifier(Modifier::BOLD)),
+        ]));
+
+        lines.push(Line::from(""));
+
+        if !state.input_values.is_empty() {
+            lines.push(Line::from(Span::styled(
+                "Inputs:",
+                Style::default().add_modifier(Modifier::BOLD),
+            )));
+
+            for (i, input) in func.inputs.iter().enumerate() {
+                if let Some(value) = state.input_values.get(i) {
+                    if !value.is_empty() {
+                        lines.push(Line::from(vec![
+                            Span::raw("  "),
+                            Span::styled(
+                                format!("{}: ", input.name),
+                                Style::default().fg(Color::Cyan),
+                            ),
+                            Span::styled(value, Style::default()),
+                        ]));
+                    }
+                }
+            }
+
+            lines.push(Line::from(""));
+        }
+
+        lines.push(Line::from(""));
+
+        match &state.call_status {
+            crate::app::CallStatus::Idle => {
+                lines.push(Line::from(Span::styled(
+                    "Select a function and press Enter to call it",
+                    Style::default().fg(Color::DarkGray),
+                )));
+            }
+            crate::app::CallStatus::Preparing => {
+                lines.push(Line::from(vec![
+                    Span::styled("● ", Style::default().fg(Color::Yellow)),
+                    Span::styled("Preparing call...", Style::default().fg(Color::Yellow)),
+                ]));
+            }
+            crate::app::CallStatus::Connecting => {
+                lines.push(Line::from(vec![
+                    Span::styled("● ", Style::default().fg(Color::Yellow)),
+                    Span::styled("Connecting to RPC...", Style::default().fg(Color::Yellow)),
+                ]));
+            }
+            crate::app::CallStatus::Executing => {
+                lines.push(Line::from(vec![
+                    Span::styled("● ", Style::default().fg(Color::Yellow)),
+                    Span::styled("Executing call...", Style::default().fg(Color::Yellow)),
+                ]));
+            }
+            crate::app::CallStatus::Completed => {
+                if let Some(result) = &state.result {
+                    lines.push(Line::from(vec![
+                        Span::styled("● ", Style::default().fg(Color::Green)),
+                        Span::styled("Result: ", Style::default().fg(Color::Green)),
+                        Span::styled(result, Style::default().fg(Color::Green)),
+                    ]));
+                } else {
+                    lines.push(Line::from(vec![
+                        Span::styled("● ", Style::default().fg(Color::Green)),
+                        Span::styled("Call completed", Style::default().fg(Color::Green)),
+                    ]));
+                }
+            }
+            crate::app::CallStatus::Failed(msg) => {
+                lines.push(Line::from(vec![
+                    Span::styled("✗ ", Style::default().fg(Color::Red)),
+                    Span::styled("Failed: ", Style::default().fg(Color::Red)),
+                    Span::styled(msg, Style::default().fg(Color::Red)),
+                ]));
+            }
+        }
+
+        if let Some(error) = &state.error {
+            lines.push(Line::from(""));
+            lines.push(Line::from(Span::styled(
+                "Error Details:",
+                Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+            )));
+
+            // Split error into lines to ensure full display
+            for error_line in error.lines() {
+                lines.push(Line::from(vec![
+                    Span::raw("  "),
+                    Span::styled(error_line, Style::default().fg(Color::Red)),
+                ]));
+            }
+        }
+    } else {
+        lines.push(Line::from(Span::styled(
+            "Select a deployment and function to call",
+            Style::default().fg(Color::DarkGray),
+        )));
+    }
+
+    let paragraph = Paragraph::new(lines).wrap(Wrap { trim: true }).block(
+        Block::default()
+            .title(" Result ")
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Blue)),
+    );
 
     frame.render_widget(paragraph, area);
 }

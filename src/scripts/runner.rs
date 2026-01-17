@@ -99,7 +99,7 @@ impl ScriptManager {
 
     fn parse_script(&self, path: &PathBuf) -> Option<Script> {
         let file_name = path.file_name()?.to_string_lossy().to_string();
-        
+
         if file_name.ends_with(".s.sol") {
             // Foundry script
             let name = file_name.strip_suffix(".s.sol")?.to_string();
@@ -119,7 +119,7 @@ impl ScriptManager {
             if file_name.contains("hardhat.config") {
                 return None;
             }
-            
+
             let name = if let Some(stripped) = file_name.strip_suffix(".js") {
                 stripped.to_string()
             } else {
@@ -151,10 +151,12 @@ impl ScriptManager {
     ) -> Result<ScriptOutput> {
         match script.script_type {
             ScriptType::Foundry => {
-                self.run_foundry(script, rpc_url, broadcast, verify, private_key, tx).await
+                self.run_foundry(script, rpc_url, broadcast, verify, private_key, tx)
+                    .await
             }
             ScriptType::Hardhat => {
-                self.run_hardhat(script, network, rpc_url, private_key, tx).await
+                self.run_hardhat(script, network, rpc_url, private_key, tx)
+                    .await
             }
         }
     }
@@ -243,8 +245,8 @@ impl ScriptManager {
     }
 
     async fn execute_command(
-        &self, 
-        mut cmd: Command, 
+        &self,
+        mut cmd: Command,
         script_name: &str,
         tx: Option<UnboundedSender<String>>,
     ) -> Result<ScriptOutput> {
@@ -353,12 +355,16 @@ impl ScriptManager {
                 None => {
                     tracing::warn!("No private key found for wallet: {}", default_wallet);
                     // Fall back to PRIVATE_KEY env var
-                    std::env::var("PRIVATE_KEY").ok().and_then(|k| normalize_private_key(&k))
+                    std::env::var("PRIVATE_KEY")
+                        .ok()
+                        .and_then(|k| normalize_private_key(&k))
                 }
             }
         } else {
             // No default wallet configured, try PRIVATE_KEY env var
-            std::env::var("PRIVATE_KEY").ok().and_then(|k| normalize_private_key(&k))
+            std::env::var("PRIVATE_KEY")
+                .ok()
+                .and_then(|k| normalize_private_key(&k))
         };
 
         if private_key.is_none() {
@@ -419,10 +425,7 @@ impl ScriptManager {
                                 keychain_ref
                             )
                         } else if let Some(env_var) = &wc.env_var {
-                            format!(
-                                "Environment variable '{}' is not set.",
-                                env_var
-                            )
+                            format!("Environment variable '{}' is not set.", env_var)
                         } else {
                             "Wallet has no keychain or env_var configured.".to_string()
                         }
@@ -449,9 +452,7 @@ impl ScriptManager {
                     }
                 },
                 Err(_) => {
-                    return Err(eyre::eyre!(
-                        "PRIVATE_KEY environment variable is not set."
-                    ));
+                    return Err(eyre::eyre!("PRIVATE_KEY environment variable is not set."));
                 }
             }
         };
@@ -589,7 +590,8 @@ contract DeployToken is Script {
         );
 
         // Key with whitespace
-        let key_with_whitespace = "  0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80  ";
+        let key_with_whitespace =
+            "  0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80  ";
         assert!(normalize_private_key(key_with_whitespace).is_some());
 
         // Invalid: too short
