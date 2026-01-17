@@ -92,7 +92,11 @@ On first run, Runic will guide you through:
 
 ## 🔧 Configuration
 
-Runic stores configuration in `~/.config/runic/settings.toml`:
+Runic stores configuration in your system's standard config directory and creates it automatically on first run:
+
+- **macOS**: `~/Library/Application Support/runic/config.toml`
+- **Linux**: `~/.config/runic/config.toml`
+- **Windows**: `%APPDATA%\runic\config.toml`
 
 ```toml
 [defaults]
