@@ -68,18 +68,6 @@ impl KeychainManager {
             Err(e) => Err(e).wrap_err_with(|| format!("Failed to delete secret for {}", key)),
         }
     }
-
-    /// Check if a key exists in the keychain
-    pub fn exists(&self, key: &str) -> Result<bool> {
-        let entry = Entry::new(&self.service, key)
-            .wrap_err_with(|| format!("Failed to access keychain entry for {}", key))?;
-
-        match entry.get_password() {
-            Ok(_) => Ok(true),
-            Err(keyring::Error::NoEntry) => Ok(false),
-            Err(e) => Err(e).wrap_err_with(|| format!("Failed to check secret for {}", key)),
-        }
-    }
 }
 
 impl Default for KeychainManager {
@@ -140,13 +128,6 @@ pub fn store_api_key(service: &str, key: &str) -> Result<()> {
     let km = KeychainManager::new();
     let keychain_key = format!("api:{}", service);
     km.set(&keychain_key, key)
-}
-
-/// Retrieve an API key from secure storage
-pub fn get_api_key(service: &str) -> Result<Option<String>> {
-    let km = KeychainManager::new();
-    let keychain_key = format!("api:{}", service);
-    km.get(&keychain_key)
 }
 
 #[cfg(test)]

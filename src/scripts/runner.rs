@@ -87,10 +87,8 @@ impl ScriptManager {
 
             if path.is_dir() {
                 self.scan_dir(&path)?;
-            } else {
-                if let Some(script) = self.parse_script(&path) {
-                    self.scripts.push(script);
-                }
+            } else if let Some(script) = self.parse_script(&path) {
+                self.scripts.push(script);
             }
         }
 
@@ -312,79 +310,6 @@ impl ScriptManager {
             stdout: stdout_output,
             stderr: stderr_output,
         })
-    }
-
-    /// Get a script by index
-    pub fn get(&self, index: usize) -> Option<&Script> {
-        self.scripts.get(index)
-    }
-
-    /// Get a script by name
-    pub fn get_by_name(&self, name: &str) -> Option<&Script> {
-        self.scripts.iter().find(|s| s.name == name)
-    }
-
-    /// Run a script with secure credential resolution from config
-    pub async fn run_with_secure_config(
-        &self,
-        script: &Script,
-        network_name: &str,
-        config: &AppConfig,
-        broadcast: bool,
-        verify: bool,
-        tx: Option<UnboundedSender<String>>,
-    ) -> Result<ScriptOutput> {
-        let rpc_url = match config.resolve_rpc_url(network_name)? {
-            Some(url) => url,
-            None => {
-                return Err(eyre::eyre!(
-                    "Network '{}' not found in config",
-                    network_name
-                ));
-            }
-        };
-
-        // Try to resolve private key from:
-        // 1. Configured default wallet in config
-        // 2. PRIVATE_KEY environment variable as fallback
-        let private_key = if let Some(default_wallet) =
-            config.defaults.as_ref().and_then(|d| d.wallet.as_ref())
-        {
-            match config.resolve_wallet_key(default_wallet)? {
-                Some(key) => normalize_private_key(&key),
-                None => {
-                    tracing::warn!("No private key found for wallet: {}", default_wallet);
-                    // Fall back to PRIVATE_KEY env var
-                    std::env::var("PRIVATE_KEY")
-                        .ok()
-                        .and_then(|k| normalize_private_key(&k))
-                }
-            }
-        } else {
-            // No default wallet configured, try PRIVATE_KEY env var
-            std::env::var("PRIVATE_KEY")
-                .ok()
-                .and_then(|k| normalize_private_key(&k))
-        };
-
-        if private_key.is_none() {
-            let msg = "WARNING: No private key available. Set PRIVATE_KEY env var or configure a default wallet with 'k' in config screen.";
-            tracing::warn!("{}", msg);
-            if let Some(ref tx) = tx {
-                let _ = tx.send(msg.to_string());
-            }
-        }
-
-        self.run(
-            script,
-            network_name,
-            &rpc_url,
-            broadcast,
-            verify,
-            private_key.as_deref(),
-            tx,
-        )
-        .await
     }
 
     /// Run a script with explicit wallet selection

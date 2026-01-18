@@ -86,8 +86,6 @@ pub enum CallStatus {
     /// Not in a call
     #[default]
     Idle,
-    /// Preparing to call
-    Preparing,
     /// Connecting to RPC
     Connecting,
     /// Executing the call
@@ -169,11 +167,6 @@ impl App {
 
     pub fn clear_status(&mut self) {
         self.status_message = None;
-    }
-
-    /// Get the default network configuration
-    pub fn get_default_network(&self) -> Option<(&String, &crate::config::NetworkConfig)> {
-        self.config.get_network(None)
     }
 }
 
@@ -510,10 +503,8 @@ async fn handle_interact_input(app: &mut App, key: KeyCode) {
                     if let View::Interact(state) = &mut app.view {
                         state.focus = InteractFocus::Functions;
                     }
-                } else {
-                    if let View::Interact(state) = &mut app.view {
-                        state.focus = InteractFocus::Deployments;
-                    }
+                } else if let View::Interact(state) = &mut app.view {
+                    state.focus = InteractFocus::Deployments;
                 }
             }
             _ => {}
@@ -561,12 +552,10 @@ async fn handle_interact_input(app: &mut App, key: KeyCode) {
                                 )
                                 .await;
                             }
-                        } else {
-                            if let View::Interact(state) = &mut app.view {
-                                state.input_values = vec![String::new(); func.inputs.len()];
-                                state.current_input = 0;
-                                state.focus = InteractFocus::Inputs;
-                            }
+                        } else if let View::Interact(state) = &mut app.view {
+                            state.input_values = vec![String::new(); func.inputs.len()];
+                            state.current_input = 0;
+                            state.focus = InteractFocus::Inputs;
                         }
                     }
                 }
@@ -740,10 +729,8 @@ async fn execute_function_call(
     wallet_name: Option<String>,
 ) {
     // First, extract deployment info without holding borrow on state
-    let deployment_info = match app.deployments.deployments.get(deployment_idx) {
-        Some(d) => Some((d.chain_id, d.callable_address.clone(), d.functions.clone())),
-        None => None,
-    };
+    let deployment_info = app.deployments.deployments.get(deployment_idx)
+        .map(|d| (d.chain_id, d.callable_address.clone(), d.functions.clone()));
 
     let (chain_id, callable_address, functions) = match deployment_info {
         Some(info) => info,
@@ -1525,7 +1512,7 @@ fn handle_delete_credentials(app: &mut App) -> Result<()> {
                 let wallet_name = wallet_names[wallet_selection].clone();
 
                 if Confirm::new()
-                    .with_prompt(&format!(
+                    .with_prompt(format!(
                         "Delete wallet '{}' and its private key?",
                         wallet_name
                     ))
@@ -1550,7 +1537,7 @@ fn handle_delete_credentials(app: &mut App) -> Result<()> {
                 let network_name = network_names[network_selection].clone();
 
                 if Confirm::new()
-                    .with_prompt(&format!(
+                    .with_prompt(format!(
                         "Delete network '{}' and its RPC URL?",
                         network_name
                     ))
@@ -1575,7 +1562,7 @@ fn handle_delete_credentials(app: &mut App) -> Result<()> {
                 let service_name = api_names[service_selection].clone();
 
                 if Confirm::new()
-                    .with_prompt(&format!("Delete API key for '{}'?", service_name))
+                    .with_prompt(format!("Delete API key for '{}'?", service_name))
                     .default(false)
                     .interact()?
                 {

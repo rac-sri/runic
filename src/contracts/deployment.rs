@@ -31,7 +31,6 @@ pub struct Deployment {
     pub callable_address: String, // Address to use for calls (proxy if available)
     pub network: String,
     pub chain_id: u64,
-    pub tx_hash: Option<String>,
     pub abi_path: Option<PathBuf>,
     pub functions: Vec<ContractFunction>,
     pub args: Option<Vec<String>>,
@@ -42,7 +41,6 @@ pub struct Deployment {
 /// Manager for scanning and tracking deployed contracts
 pub struct DeploymentManager {
     pub deployments: Vec<Deployment>,
-    project_root: PathBuf,
     broadcast_dir: PathBuf,
     out_dir: PathBuf,
 }
@@ -61,7 +59,6 @@ struct Transaction {
     contract_name: Option<String>,
     #[serde(rename = "contractAddress")]
     contract_address: Option<String>,
-    hash: Option<String>,
     arguments: Option<Vec<Value>>,
 }
 
@@ -69,7 +66,6 @@ impl DeploymentManager {
     pub fn new(project: &Project) -> Self {
         Self {
             deployments: Vec::new(),
-            project_root: project.root.clone(),
             broadcast_dir: project.broadcast_dir.clone(),
             out_dir: project.out_dir.clone(),
         }
@@ -142,7 +138,6 @@ impl DeploymentManager {
                             callable_address: address, // Default to address
                             network: network.clone(),
                             chain_id,
-                            tx_hash: tx.hash,
                             abi_path: if abi_path.exists() { Some(abi_path) } else { None },
                             functions,
                             args,
@@ -173,7 +168,7 @@ impl DeploymentManager {
             
             base_to_deployments
                 .entry((base_name, deployment.chain_id))
-                .or_insert(Vec::new())
+                .or_default()
                 .push(i);
                 
             address_to_index.insert((deployment.address.clone(), deployment.chain_id), i);
@@ -316,7 +311,6 @@ mod tests {
                     callable_address: "0xImpl".to_string(),
                     network: "localhost".to_string(),
                     chain_id: 31337,
-                    tx_hash: None,
                     abi_path: None,
                     functions: vec![],
                     args: None,
@@ -329,7 +323,6 @@ mod tests {
                     callable_address: "0xProxy".to_string(),
                     network: "localhost".to_string(),
                     chain_id: 31337,
-                    tx_hash: None,
                     abi_path: None,
                     functions: vec![],
                     args: None,
@@ -337,7 +330,6 @@ mod tests {
                     implementation_set: false,
                 },
             ],
-            project_root: project_root.clone(),
             broadcast_dir: project_root.join("broadcast"),
             out_dir: project_root.join("out"),
         };
@@ -360,7 +352,6 @@ mod tests {
                     callable_address: "0xImpl".to_string(),
                     network: "localhost".to_string(),
                     chain_id: 1,
-                    tx_hash: None,
                     abi_path: None,
                     functions: vec![],
                     args: None,
@@ -373,7 +364,6 @@ mod tests {
                     callable_address: "0xProxy".to_string(),
                     network: "localhost".to_string(),
                     chain_id: 2,
-                    tx_hash: None,
                     abi_path: None,
                     functions: vec![],
                     args: None,
@@ -381,7 +371,6 @@ mod tests {
                     implementation_set: false,
                 },
             ],
-            project_root: project_root.clone(),
             broadcast_dir: project_root.join("broadcast"),
             out_dir: project_root.join("out"),
         };
@@ -405,7 +394,6 @@ mod tests {
                     callable_address: "0xImpl".to_string(),
                     network: "localhost".to_string(),
                     chain_id: 31337,
-                    tx_hash: None,
                     abi_path: None,
                     functions: vec![],
                     args: None,
@@ -418,7 +406,6 @@ mod tests {
                     callable_address: "0xProxy".to_string(),
                     network: "localhost".to_string(),
                     chain_id: 31337,
-                    tx_hash: None,
                     abi_path: None,
                     functions: vec![],
                     args: Some(vec!["0xImpl".to_string(), "0xData".to_string()]),
@@ -426,7 +413,6 @@ mod tests {
                     implementation_set: false,
                 },
             ],
-            project_root: project_root.clone(),
             broadcast_dir: project_root.join("broadcast"),
             out_dir: project_root.join("out"),
         };

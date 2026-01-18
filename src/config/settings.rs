@@ -116,43 +116,11 @@ impl AppConfig {
         Ok(config_dir.join(CONFIG_DIR).join(CONFIG_FILE))
     }
 
-    /// Get a network by name, falling back to default
-    pub fn get_network(&self, name: Option<&str>) -> Option<(&String, &NetworkConfig)> {
-        if let Some(name) = name {
-            self.networks.get_key_value(name)
-        } else if let Some(defaults) = &self.defaults {
-            if let Some(default_name) = &defaults.network {
-                self.networks.get_key_value(default_name)
-            } else {
-                self.networks.iter().next()
-            }
-        } else {
-            self.networks.iter().next()
-        }
-    }
-
     /// Get network by chain ID
     pub fn get_network_by_chain_id(&self, chain_id: u64) -> Option<(&String, &NetworkConfig)> {
         self.networks
             .iter()
             .find(|(_, config)| config.chain_id == Some(chain_id))
-            .map(|(name, config)| (name, config))
-    }
-
-    /// Resolve an API key value (handling keychain references)
-    pub fn resolve_api_key(&self, name: &str) -> Result<Option<String>> {
-        let value = match self.api_keys.get(name) {
-            Some(v) => v,
-            None => return Ok(None),
-        };
-
-        if let Some(keychain_ref) = value.strip_prefix("keychain:") {
-            use super::KeychainManager;
-            let km = KeychainManager::new();
-            km.get(keychain_ref)
-        } else {
-            Ok(Some(value.clone()))
-        }
     }
 
     /// Resolve a wallet private key
@@ -236,42 +204,6 @@ pub fn load_chain_names() -> Result<HashMap<u64, String>> {
     }
 
     Ok(result)
-}
-
-/// Create a default configuration with common networks
-pub fn create_default_config() -> AppConfig {
-    let mut networks = HashMap::new();
-
-    networks.insert(
-        "mainnet".to_string(),
-        NetworkConfig {
-            rpc_url: "https://eth.llamarpc.com".to_string(),
-            chain_id: Some(1),
-            explorer_url: Some("https://etherscan.io".to_string()),
-            explorer_api_key: Some("keychain:etherscan_mainnet".to_string()),
-        },
-    );
-
-    networks.insert(
-        "sepolia".to_string(),
-        NetworkConfig {
-            rpc_url: "https://sepolia.drpc.org".to_string(),
-            chain_id: Some(11155111),
-            explorer_url: Some("https://sepolia.etherscan.io".to_string()),
-            explorer_api_key: Some("keychain:etherscan_sepolia".to_string()),
-        },
-    );
-
-    AppConfig {
-        networks,
-        wallets: HashMap::new(),
-        api_keys: HashMap::new(),
-        defaults: Some(Defaults {
-            network: Some("sepolia".to_string()),
-            wallet: None,
-        }),
-        config_path: None,
-    }
 }
 
 #[cfg(test)]

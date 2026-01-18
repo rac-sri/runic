@@ -1,3 +1,3 @@
 mod runner;
 
-pub use runner::{Script, ScriptManager, ScriptOutput};
+pub use runner::ScriptManager;

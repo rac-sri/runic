@@ -3,7 +3,7 @@ use ratatui::{
     widgets::{Block, Borders, List, ListItem, ListState, Paragraph, Wrap},
 };
 
-use crate::app::{App, InteractFocus, InteractState, NetworkInfo};
+use crate::app::{App, InteractFocus, InteractState};
 use crate::contracts::ContractFunction;
 
 pub fn draw(frame: &mut Frame, app: &App, state: &InteractState, area: Rect) {
@@ -420,8 +420,7 @@ fn draw_wallet_selection_panel(frame: &mut Frame, app: &App, state: &InteractSta
 
     let items: Vec<ListItem> = wallet_names
         .iter()
-        .enumerate()
-        .map(|(i, name)| {
+        .map(|name| {
             let is_selected = state.selected_wallet.as_ref() == Some(name);
             let style = if is_selected && is_focused {
                 Style::default().bg(Color::Blue).fg(Color::White)
@@ -571,12 +570,6 @@ fn draw_result(frame: &mut Frame, app: &App, state: &InteractState, area: Rect) 
                     "Select a function and press Enter to call it",
                     Style::default().fg(Color::DarkGray),
                 )));
-            }
-            crate::app::CallStatus::Preparing => {
-                lines.push(Line::from(vec![
-                    Span::styled("● ", Style::default().fg(Color::Yellow)),
-                    Span::styled("Preparing call...", Style::default().fg(Color::Yellow)),
-                ]));
             }
             crate::app::CallStatus::Connecting => {
                 lines.push(Line::from(vec![

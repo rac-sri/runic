@@ -287,15 +287,3 @@ fn prompt_chain_id(network_name: &str) -> Result<u64> {
 pub fn is_config_complete(config: &AppConfig) -> bool {
     !config.networks.is_empty() && !config.wallets.is_empty()
 }
-
-/// Interactive prompt to add more networks
-pub fn prompt_add_network(config: &mut AppConfig) -> Result<()> {
-    setup_network(config)?;
-    config.save()
-}
-
-/// Interactive prompt to add more wallets
-pub fn prompt_add_wallet(config: &mut AppConfig) -> Result<()> {
-    setup_wallet(config)?;
-    config.save()
-}
