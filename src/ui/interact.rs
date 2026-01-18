@@ -56,11 +56,20 @@ fn draw_deployments_list(frame: &mut Frame, app: &App, state: &InteractState, ar
                 Style::default()
             };
 
+            let proxy_indicator = if d.callable_address != d.address {
+                " [P]"
+            } else {
+                ""
+            };
             ListItem::new(Line::from(vec![
                 Span::styled(&d.name, style.add_modifier(Modifier::BOLD)),
                 Span::styled(
-                    format!(" ({})", d.network),
-                    Style::default().fg(Color::DarkGray),
+                    format!("{} ({} #{})", proxy_indicator, d.network, d.chain_id),
+                    Style::default().fg(if proxy_indicator.is_empty() {
+                        Color::DarkGray
+                    } else {
+                        Color::Yellow
+                    }),
                 ),
             ]))
         })
@@ -91,6 +100,10 @@ fn draw_right_panel(frame: &mut Frame, app: &App, state: &InteractState, area: R
         draw_input_panel(frame, app, state, area);
     } else if matches!(state.focus, crate::app::InteractFocus::WalletSelection) {
         draw_wallet_selection_panel(frame, app, state, area);
+    } else if matches!(state.focus, crate::app::InteractFocus::AbiSelection) {
+        draw_abi_selection_panel(frame, app, state, area);
+    } else if matches!(state.focus, crate::app::InteractFocus::ImplementationPrompt) {
+        draw_implementation_prompt_panel(frame, app, state, area);
     } else {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
@@ -100,6 +113,138 @@ fn draw_right_panel(frame: &mut Frame, app: &App, state: &InteractState, area: R
         draw_functions(frame, app, state, chunks[0]);
         draw_result(frame, app, state, chunks[1]);
     }
+}
+
+fn draw_abi_selection_panel(frame: &mut Frame, app: &App, state: &InteractState, area: Rect) {
+    let deployments = &app.deployments.deployments;
+
+    let items: Vec<ListItem> = deployments
+        .iter()
+        .enumerate()
+        .map(|(i, d)| {
+            let is_selected = i == state.abi_selection_index;
+            let style = if is_selected {
+                Style::default().bg(Color::Blue).fg(Color::White)
+            } else {
+                Style::default()
+            };
+
+            ListItem::new(Line::from(vec![
+                Span::styled(&d.name, style.add_modifier(Modifier::BOLD)),
+                Span::styled(
+                    format!(" ({})", d.network),
+                    Style::default().fg(Color::DarkGray),
+                ),
+            ]))
+        })
+        .collect();
+
+    let mut list_state = ListState::default();
+    list_state.select(Some(state.abi_selection_index));
+
+    let list = List::new(items)
+        .block(
+            Block::default()
+                .title(" Select Implementation ABI ")
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::Cyan)),
+        )
+        .highlight_style(Style::default().bg(Color::Blue))
+        .highlight_symbol("▶ ");
+
+    frame.render_stateful_widget(list, area, &mut list_state);
+}
+
+fn draw_implementation_prompt_panel(
+    frame: &mut Frame,
+    app: &App,
+    state: &InteractState,
+    area: Rect,
+) {
+    let deployments = &app.deployments.deployments;
+    let current_deployment = deployments.get(state.selected_deployment);
+
+    // Split into header section and list section
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Length(7), Constraint::Min(5)])
+        .split(area);
+
+    // Header with explanation
+    let proxy_addr = current_deployment
+        .map(|d| d.callable_address.as_str())
+        .unwrap_or("unknown");
+    let impl_addr = current_deployment
+        .map(|d| d.address.as_str())
+        .unwrap_or("unknown");
+
+    let header_lines = vec![
+        Line::from(vec![
+            Span::styled("Proxy Contract Detected", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+        ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("Proxy: ", Style::default().fg(Color::DarkGray)),
+            Span::styled(proxy_addr, Style::default().fg(Color::Cyan)),
+        ]),
+        Line::from(vec![
+            Span::styled("Implementation: ", Style::default().fg(Color::DarkGray)),
+            Span::styled(impl_addr, Style::default().fg(Color::Cyan)),
+        ]),
+        Line::from(""),
+        Line::from(Span::styled(
+            "Select implementation ABI below, or press 's' to skip:",
+            Style::default().fg(Color::DarkGray),
+        )),
+    ];
+
+    let header = Paragraph::new(header_lines).block(
+        Block::default()
+            .borders(Borders::TOP | Borders::LEFT | Borders::RIGHT)
+            .border_style(Style::default().fg(Color::Yellow)),
+    );
+
+    frame.render_widget(header, chunks[0]);
+
+    // List of available ABIs
+    let items: Vec<ListItem> = deployments
+        .iter()
+        .enumerate()
+        .map(|(i, d)| {
+            let is_selected = i == state.abi_selection_index;
+            let is_current = i == state.selected_deployment;
+            let style = if is_selected {
+                Style::default().bg(Color::Blue).fg(Color::White)
+            } else {
+                Style::default()
+            };
+
+            let current_marker = if is_current { " (current)" } else { "" };
+
+            ListItem::new(Line::from(vec![
+                Span::styled(&d.name, style.add_modifier(Modifier::BOLD)),
+                Span::styled(
+                    format!(" ({}){}", d.network, current_marker),
+                    Style::default().fg(Color::DarkGray),
+                ),
+            ]))
+        })
+        .collect();
+
+    let mut list_state = ListState::default();
+    list_state.select(Some(state.abi_selection_index));
+
+    let list = List::new(items)
+        .block(
+            Block::default()
+                .title(" Select Implementation ABI (Enter to select, 's' to skip) ")
+                .borders(Borders::BOTTOM | Borders::LEFT | Borders::RIGHT)
+                .border_style(Style::default().fg(Color::Yellow)),
+        )
+        .highlight_style(Style::default().bg(Color::Blue))
+        .highlight_symbol("▶ ");
+
+    frame.render_stateful_widget(list, chunks[1], &mut list_state);
 }
 
 fn draw_functions(frame: &mut Frame, app: &App, state: &InteractState, area: Rect) {
@@ -206,7 +351,7 @@ fn draw_input_panel(frame: &mut Frame, app: &App, state: &InteractState, area: R
 
     for (i, input) in func.inputs.iter().enumerate() {
         let is_current = i == state.current_input;
-        let value = state.input_values.get(i).map(|s| s.as_str()).unwrap_or("");
+        let value = state.input_values.get(i).map(|s: &String| s.as_str()).unwrap_or("");
 
         let label_style = if is_current {
             Style::default()
@@ -350,18 +495,33 @@ fn draw_result(frame: &mut Frame, app: &App, state: &InteractState, area: Rect) 
 
         lines.push(Line::from(vec![
             Span::styled("Address: ", Style::default().fg(Color::DarkGray)),
-            Span::styled(&deployment.address, Style::default().fg(Color::Cyan)),
+            Span::styled(
+                &deployment.callable_address,
+                Style::default().fg(Color::Cyan),
+            ),
         ]));
 
-        if let Some(network_info) = &state.network_info {
+        // Always show the deployment's network/chain info
+        lines.push(Line::from(vec![
+            Span::styled("Network: ", Style::default().fg(Color::DarkGray)),
+            Span::styled(
+                format!("{} (chain {})", deployment.network, deployment.chain_id),
+                Style::default().fg(Color::Cyan),
+            ),
+        ]));
+
+        if deployment.callable_address != deployment.address {
             lines.push(Line::from(vec![
-                Span::styled("Network: ", Style::default().fg(Color::DarkGray)),
-                Span::styled(&network_info.network_name, Style::default().fg(Color::Cyan)),
+                Span::styled("Proxy: ", Style::default().fg(Color::DarkGray)),
                 Span::styled(
-                    format!(" (Chain ID: {})", network_info.chain_id),
-                    Style::default().fg(Color::DarkGray),
+                    "Calls routed through proxy",
+                    Style::default().fg(Color::Yellow),
                 ),
             ]));
+        }
+
+        // Show RPC URL only after a call has been made
+        if let Some(network_info) = &state.network_info {
             lines.push(Line::from(vec![
                 Span::styled("RPC: ", Style::default().fg(Color::DarkGray)),
                 Span::styled(
@@ -386,6 +546,7 @@ fn draw_result(frame: &mut Frame, app: &App, state: &InteractState, area: Rect) 
 
             for (i, input) in func.inputs.iter().enumerate() {
                 if let Some(value) = state.input_values.get(i) {
+                    let value: &String = value;
                     if !value.is_empty() {
                         lines.push(Line::from(vec![
                             Span::raw("  "),

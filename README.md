@@ -132,6 +132,20 @@ In Config mode (`c`):
 - Support for environment variables containing private keys
 - Set default wallet for transactions
 
+### Chain Names
+
+Runic uses a `chains.toml` file to map chain IDs to human-readable network names. This file is located alongside `config.toml` and can be edited to add custom network names or update existing ones.
+
+```toml
+[chains]
+1 = "Ethereum Mainnet"
+11155111 = "Sepolia Testnet"
+42161 = "Arbitrum One"
+# Add more as needed
+```
+
+If a chain ID is not found in this file, Runic displays it as "chain-{chain_id}". Update this file to customize network display names in the interactive mode.
+
 ## 🎮 Interactive Mode
 
 Browse and interact with deployed contracts:

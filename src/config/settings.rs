@@ -4,6 +4,7 @@ use std::path::PathBuf;
 
 use eyre::{Result, WrapErr};
 use serde::{Deserialize, Serialize};
+use toml::Table;
 
 const CONFIG_DIR: &str = "runic";
 const CONFIG_FILE: &str = "config.toml";
@@ -203,6 +204,38 @@ impl AppConfig {
             Ok(Some(network.rpc_url.clone()))
         }
     }
+}
+
+/// Load chain ID to network name mappings from chains.toml
+pub fn load_chain_names() -> Result<HashMap<u64, String>> {
+    let config_dir =
+        dirs::config_dir().ok_or_else(|| eyre::eyre!("Could not determine config directory"))?;
+    let chains_path = config_dir.join(CONFIG_DIR).join("chains.toml");
+
+    if !chains_path.exists() {
+        return Ok(HashMap::new());
+    }
+
+    let content = fs::read_to_string(&chains_path)
+        .wrap_err_with(|| format!("Failed to read chains file: {:?}", chains_path))?;
+
+    let chains_config: toml::Value =
+        toml::from_str(&content).wrap_err("Failed to parse chains.toml")?;
+
+    let empty_table = Table::new();
+    let chains_table = chains_config
+        .get("chains")
+        .and_then(|v| v.as_table())
+        .unwrap_or(&empty_table);
+
+    let mut result = HashMap::new();
+    for (key, value) in chains_table {
+        if let (Ok(chain_id), Some(name)) = (key.parse::<u64>(), value.as_str()) {
+            result.insert(chain_id, name.to_string());
+        }
+    }
+
+    Ok(result)
 }
 
 /// Create a default configuration with common networks

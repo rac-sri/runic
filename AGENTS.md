@@ -64,8 +64,157 @@ cargo test                        # Run 10 inline unit tests
 cargo build --release             # LTO + strip enabled in profile.release
 ```
 
+## DEVELOPMENT WORKFLOW
+
+### Setup
+1. Install Rust: `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
+2. Clone and build: `cargo build --release`
+3. Run: `cargo run -- --path .`
+
+### Daily Development
+- Use `cargo check` for fast feedback
+- Format code: `cargo fmt`
+- Lint: `cargo clippy -- -D warnings`
+- Test: `cargo test`
+
+## BUILD AND TEST COMMANDS
+
+### Building
+```bash
+cargo build                    # Debug build
+cargo build --release         # Optimized release build
+cargo check                   # Check without building
+```
+
+### Testing
+```bash
+cargo test                    # Run all tests
+cargo test -- --nocapture     # Show test output
+cargo test test_function_name # Run specific test function
+cargo test --lib              # Run library tests only
+cargo test --doc              # Run doc tests
+```
+
+### Linting and Formatting
+```bash
+cargo fmt                     # Format code
+cargo clippy                  # Lint with Clippy
+cargo clippy -- -D warnings   # Treat warnings as errors
+```
+
+### Running the Application
+```bash
+cargo run -- --path /path/to/project  # Run with specific project
+cargo run -- --setup                 # Force setup wizard
+```
+
+## CODE STYLE GUIDELINES
+
+### General Principles
+- Follow Rust standard conventions (rustfmt, clippy)
+- Prefer clarity over brevity
+- Use meaningful names
+- Avoid magic numbers/strings
+- Document complex logic with comments
+
+### Imports
+```rust
+// Order: std, external crates, local modules
+use std::collections::HashMap;
+use eyre::Result;
+use crate::config::AppConfig;
+```
+
+- Group imports logically
+- Use `use` for commonly used types
+- Avoid wildcard imports (`use::*`)
+
+### Naming Conventions
+- **Functions/Methods**: `snake_case`
+- **Types/Structs/Enums**: `PascalCase`
+- **Constants**: `SCREAMING_SNAKE_CASE`
+- **Fields/Variables**: `snake_case`
+- **Modules**: `snake_case`
+
+### Types and Safety
+- Use strong typing with `#[derive(Debug, Clone)]` where appropriate
+- Prefer `&str` over `String` for parameters when possible
+- Use `zeroize::Zeroizing<String>` for sensitive data
+- Avoid `as` casts; use `try_into()` or explicit conversions
+- Never use `unwrap()` in production code; use `?` or `expect("reason")`
+
+### Error Handling
+- Use `eyre::Result<T>` for all fallible operations
+- Propagate errors with `?`
+- Use `eyre::eyre!()` for custom error messages
+- Wrap errors with context: `.wrap_err("context")`
+
+### Async Code
+- Use `tokio` runtime
+- Mark I/O functions as `async fn`
+- Use `await` for async operations
+- Prefer `tokio::spawn` for concurrent tasks
+
+### Testing
+- Write unit tests in `#[cfg(test)]` modules
+- Use descriptive test names
+- Test both success and error paths
+- Mock external dependencies when possible
+
+### Security
+- Never log or store private keys
+- Use OS keychain for sensitive data
+- Validate user inputs
+- Use secure random generation
+
+### Code Organization
+- One concept per function (max 50 lines)
+- Use modules for logical grouping
+- Export via `mod.rs` with `pub use`
+- Keep dependencies minimal
+
+### Comments and Documentation
+- Use `///` for public API documentation
+- Explain "why" not "what" in comments
+- Avoid obvious comments
+- Document assumptions and edge cases
+
+## TESTING GUIDELINES
+
+### Unit Tests
+- Place in `#[cfg(test)] mod tests { ... }`
+- Test functions: `fn test_something()`
+- Use `assert_eq!`, `assert!`, etc.
+- Test error conditions
+
+### Integration Tests
+- Place in `tests/` directory
+- Test full workflows
+- Use real dependencies when safe
+
+### Running Specific Tests
+```bash
+# Run all tests in a module
+cargo test mod_name::
+
+# Run specific test
+cargo test test_function_name
+
+# Run tests matching pattern
+cargo test pattern
+```
+
+### Test Organization
+- Test both happy path and error cases
+- Use fixtures for complex setup
+- Clean up after tests
+- Avoid flaky tests
+
 ## NOTES
 - Project type auto-detected from foundry.toml or hardhat.config.js
 - CLI args: `--path <dir>`, `--project-type foundry|hardhat`, `--setup`, `--no-setup`
 - TUI navigation: `i` (interact), `s` (scripts), `c` (config), `q` / `Ctrl+C` (quit), vim-style `j/k` for nav
 - Keychain references use prefix `runic:` (e.g., `keychain: "runic:dev_wallet"`)
+- Use `color-eyre` for error reporting
+- Config stored in `~/.config/runic/` (or equivalent)
+- Use `tracing` for logging

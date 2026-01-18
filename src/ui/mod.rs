@@ -53,10 +53,12 @@ fn draw_footer(frame: &mut Frame, app: &App, area: Rect) {
     let help_text = match &app.view {
         View::Home => "[i] Interact  [s] Scripts  [c] Config  [q] Quit",
         View::Interact(state) => match state.focus {
-            InteractFocus::Deployments => "[↑↓] Navigate  [Tab/→/Enter] Functions  [Esc] Back",
+            InteractFocus::Deployments => "[↑↓] Navigate  [Tab/→/Enter] Functions  [a] Change ABI  [Esc] Back",
             InteractFocus::Functions => "[↑↓] Navigate  [Enter] Call  [←/Esc] Deployments",
             InteractFocus::Inputs => "[↑↓/Tab] Navigate  [Enter] Submit/Next  [Esc] Cancel",
             InteractFocus::WalletSelection => "[↑↓] Navigate  [Enter] Select  [Esc] Cancel",
+            InteractFocus::AbiSelection => "[↑↓] Navigate  [Enter] Select  [Esc] Cancel",
+            InteractFocus::ImplementationPrompt => "[↑↓] Navigate  [Enter] Select ABI  [s] Skip  [Esc] Cancel",
         },
         View::Scripts(state) => match state.phase {
             ScriptPhase::SelectScript => "[↑/k] Up  [↓/j] Down  [Enter] Run  [Esc] Back",

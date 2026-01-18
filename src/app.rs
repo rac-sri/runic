@@ -76,6 +76,8 @@ pub enum InteractFocus {
     Functions,
     Inputs,
     WalletSelection,
+    AbiSelection,
+    ImplementationPrompt, // Prompt for proxy implementation ABI
 }
 
 /// Status of a contract call
@@ -116,6 +118,8 @@ pub struct InteractState {
     pub call_status: CallStatus,
     pub network_info: Option<NetworkInfo>,
     pub selected_wallet: Option<String>,
+    pub abi_selection_index: usize,
+    pub selecting_abi_for: Option<usize>,
 }
 
 /// Phase of script execution flow
@@ -343,6 +347,8 @@ async fn handle_interact_input(app: &mut App, key: KeyCode) {
                     state.selected_function = 0;
                     state.result = None;
                     state.error = None;
+                    state.network_info = None;
+                    state.call_status = CallStatus::Idle;
                 }
             }
             KeyCode::Down | KeyCode::Char('j') => {
@@ -352,12 +358,161 @@ async fn handle_interact_input(app: &mut App, key: KeyCode) {
                     state.selected_function = 0;
                     state.result = None;
                     state.error = None;
+                    state.network_info = None;
+                    state.call_status = CallStatus::Idle;
                 }
             }
             KeyCode::Enter | KeyCode::Tab | KeyCode::Right => {
-                if deployments_count > 0 && functions_count > 0 {
+                if deployments_count > 0 {
+                    // Check if this is a proxy that needs implementation confirmation
+                    // A contract is considered a proxy if callable_address != address
+                    if let Some(deployment) = deployment_clone.as_ref() {
+                        let is_behind_proxy = deployment.callable_address != deployment.address;
+                        if is_behind_proxy && !deployment.implementation_set {
+                            if let View::Interact(state) = &mut app.view {
+                                state.focus = InteractFocus::ImplementationPrompt;
+                                state.abi_selection_index = state.selected_deployment;
+                            }
+                            return;
+                        }
+                    }
+                    // Normal flow: go to functions if available
+                    if functions_count > 0 {
+                        if let View::Interact(state) = &mut app.view {
+                            state.focus = InteractFocus::Functions;
+                        }
+                    }
+                }
+            }
+            KeyCode::Char('a') => {
+                 if let View::Interact(state) = &mut app.view {
+                     state.focus = InteractFocus::AbiSelection;
+                     state.abi_selection_index = state.selected_deployment;
+                     state.selecting_abi_for = Some(state.selected_deployment);
+                 }
+            }
+            _ => {}
+        },
+
+        InteractFocus::AbiSelection => match key {
+            KeyCode::Esc => {
+                 if let View::Interact(state) = &mut app.view {
+                     state.focus = InteractFocus::Deployments;
+                     state.selecting_abi_for = None;
+                 }
+            }
+             KeyCode::Up | KeyCode::Char('k') => {
+                if let View::Interact(state) = &mut app.view {
+                    state.abi_selection_index = state.abi_selection_index.saturating_sub(1);
+                }
+            }
+            KeyCode::Down | KeyCode::Char('j') => {
+                if let View::Interact(state) = &mut app.view {
+                    let max = deployments_count.saturating_sub(1);
+                    state.abi_selection_index = (state.abi_selection_index + 1).min(max);
+                }
+            }
+            KeyCode::Enter => {
+                let abi_idx = match &app.view {
+                    View::Interact(s) => s.abi_selection_index,
+                    _ => return,
+                };
+                let target_idx = match &app.view {
+                     View::Interact(s) => s.selecting_abi_for,
+                     _ => return,
+                };
+
+                if let Some(target_idx) = target_idx {
+                    // Clone ABI info from source
+                     if let Some(source) = app.deployments.deployments.get(abi_idx).cloned() {
+                          if let Some(target) = app.deployments.deployments.get_mut(target_idx) {
+                               target.functions = source.functions;
+                               target.abi_path = source.abi_path;
+                          }
+                     }
+                }
+
+                if let View::Interact(state) = &mut app.view {
+                     state.focus = InteractFocus::Deployments;
+                     state.selecting_abi_for = None;
+                     state.selected_function = 0; // Reset function selection
+                }
+            }
+            _ => {}
+        },
+
+        InteractFocus::ImplementationPrompt => match key {
+            KeyCode::Esc => {
+                // Cancel and go back to deployments
+                if let View::Interact(state) = &mut app.view {
+                    state.focus = InteractFocus::Deployments;
+                }
+            }
+            KeyCode::Up | KeyCode::Char('k') => {
+                if let View::Interact(state) = &mut app.view {
+                    state.abi_selection_index = state.abi_selection_index.saturating_sub(1);
+                }
+            }
+            KeyCode::Down | KeyCode::Char('j') => {
+                if let View::Interact(state) = &mut app.view {
+                    let max = deployments_count.saturating_sub(1);
+                    state.abi_selection_index = (state.abi_selection_index + 1).min(max);
+                }
+            }
+            KeyCode::Enter => {
+                // Select the implementation ABI and mark as set
+                let abi_idx = match &app.view {
+                    View::Interact(s) => s.abi_selection_index,
+                    _ => return,
+                };
+
+                // Clone ABI info from source to current deployment
+                if let Some(source) = app.deployments.deployments.get(abi_idx).cloned() {
+                    if let Some(target) = app
+                        .deployments
+                        .deployments
+                        .get_mut(selected_deployment_idx)
+                    {
+                        target.functions = source.functions;
+                        target.abi_path = source.abi_path;
+                        target.implementation_set = true;
+                    }
+                }
+
+                // Go to functions
+                let new_functions_count = app
+                    .deployments
+                    .deployments
+                    .get(selected_deployment_idx)
+                    .map(|d| d.functions.len())
+                    .unwrap_or(0);
+
+                if let View::Interact(state) = &mut app.view {
+                    state.selected_function = 0;
+                    if new_functions_count > 0 {
+                        state.focus = InteractFocus::Functions;
+                    } else {
+                        state.focus = InteractFocus::Deployments;
+                    }
+                }
+            }
+            KeyCode::Char('s') => {
+                // Skip - use current ABI as-is
+                if let Some(target) = app
+                    .deployments
+                    .deployments
+                    .get_mut(selected_deployment_idx)
+                {
+                    target.implementation_set = true;
+                }
+
+                if functions_count > 0 {
                     if let View::Interact(state) = &mut app.view {
                         state.focus = InteractFocus::Functions;
+                    }
+                } else {
+                    if let View::Interact(state) = &mut app.view {
+                        state.focus = InteractFocus::Deployments;
                     }
                 }
             }
@@ -584,123 +739,150 @@ async fn execute_function_call(
     params: Vec<String>,
     wallet_name: Option<String>,
 ) {
+    // First, extract deployment info without holding borrow on state
+    let deployment_info = match app.deployments.deployments.get(deployment_idx) {
+        Some(d) => Some((d.chain_id, d.callable_address.clone(), d.functions.clone())),
+        None => None,
+    };
+
+    let (chain_id, callable_address, functions) = match deployment_info {
+        Some(info) => info,
+        None => {
+            if let View::Interact(state) = &mut app.view {
+                state.call_status = CallStatus::Failed("Deployment not found".to_string());
+            }
+            return;
+        }
+    };
+
+    let func = match functions.get(function_idx) {
+        Some(f) => f.clone(),
+        None => {
+            if let View::Interact(state) = &mut app.view {
+                state.call_status = CallStatus::Failed("Function not found".to_string());
+            }
+            return;
+        }
+    };
+
+    // Clear previous results
     if let View::Interact(state) = &mut app.view {
         state.result = None;
         state.error = None;
+    }
 
-        let deployment = match app.deployments.deployments.get(deployment_idx) {
-            Some(d) => d,
-            None => {
-                state.call_status = CallStatus::Failed("Deployment not found".to_string());
-                return;
-            }
-        };
+    // Try to find the network that matches the deployment's chain ID
+    // Do this outside the state borrow so we can prompt for network if needed
+    let network_result = app.config.get_network_by_chain_id(chain_id);
 
-        let func = match deployment.functions.get(function_idx) {
-            Some(f) => f,
-            None => {
-                state.call_status = CallStatus::Failed("Function not found".to_string());
-                return;
-            }
-        };
-
-        // Try to find the network that matches the deployment's chain ID
-        let (network_name, chain_id, rpc_url) = match app
-            .config
-            .get_network_by_chain_id(deployment.chain_id)
-        {
-            Some((name, network)) => {
-                // Found network with matching chain ID - use it
-                match app.config.resolve_rpc_url(name) {
-                    Ok(Some(url)) => (name.clone(), deployment.chain_id, url),
-                    Ok(None) => {
-                        state.error = Some(format!("No RPC URL configured for network: {}", name));
+    let (network_name, rpc_url): (String, String) = match network_result {
+        Some((name, _network)) => {
+            // Found network with matching chain ID - use it
+            match app.config.resolve_rpc_url(name) {
+                Ok(Some(url)) => (name.clone(), url),
+                Ok(None) => {
+                    if let View::Interact(state) = &mut app.view {
+                        state.error =
+                            Some(format!("No RPC URL configured for network: {}", name));
                         state.call_status = CallStatus::Failed("No RPC URL".to_string());
-                        return;
                     }
-                    Err(e) => {
+                    return;
+                }
+                Err(e) => {
+                    if let View::Interact(state) = &mut app.view {
                         state.error = Some(format!("Failed to resolve RPC URL: {}", e));
                         state.call_status = CallStatus::Failed(format!("RPC error: {}", e));
-                        return;
                     }
+                    return;
                 }
             }
-            None => {
-                // No network with matching chain ID found - fall back to default network
-                match app.config.get_network(None) {
-                    Some((name, network)) => {
-                        let chain_id = network.chain_id.unwrap_or(deployment.chain_id);
-                        match app.config.resolve_rpc_url(name) {
-                            Ok(Some(url)) => (name.clone(), chain_id, url),
-                            Ok(None) => {
-                                state.error =
-                                    Some(format!("No RPC URL configured for network: {}", name));
-                                state.call_status = CallStatus::Failed("No RPC URL".to_string());
-                                return;
-                            }
-                            Err(e) => {
-                                state.error = Some(format!("Failed to resolve RPC URL: {}", e));
-                                state.call_status = CallStatus::Failed(format!("RPC error: {}", e));
-                                return;
-                            }
-                        }
-                    }
-                    None => {
-                        state.error = Some("No network configured".to_string());
-                        state.call_status = CallStatus::Failed("No network".to_string());
-                        return;
-                    }
-                }
-            }
-        };
+        }
+        None => {
+            // No network with matching chain ID found - prompt user to add one
+            let suggested_name = crate::contracts::chain_id_to_network(chain_id);
 
+            match prompt_add_network_for_chain(app, chain_id, &suggested_name) {
+                Ok(Some(url)) => (suggested_name, url),
+                Ok(None) => {
+                    // User cancelled
+                    if let View::Interact(state) = &mut app.view {
+                        state.call_status = CallStatus::Idle;
+                    }
+                    return;
+                }
+                Err(e) => {
+                    if let View::Interact(state) = &mut app.view {
+                        state.error = Some(format!("Failed to add network: {}", e));
+                        state.call_status = CallStatus::Failed("Config error".to_string());
+                    }
+                    return;
+                }
+            }
+        }
+    };
+
+    // Update state with network info and set connecting status
+    if let View::Interact(state) = &mut app.view {
         state.network_info = Some(NetworkInfo {
             network_name: network_name.clone(),
             chain_id,
             rpc_url: rpc_url.clone(),
         });
-
         state.call_status = CallStatus::Connecting;
+    }
 
-        let caller = ContractCaller::new(&rpc_url, chain_id);
+    let caller = ContractCaller::new(&rpc_url, chain_id);
 
-        let result = if ContractCaller::is_read_only(func) {
+    let result = if ContractCaller::is_read_only(&func) {
+        if let View::Interact(state) = &mut app.view {
             state.call_status = CallStatus::Executing;
-            caller.call_read(&deployment.address, func, &params).await
-        } else {
-            match wallet_name
-                .or_else(|| app.config.defaults.as_ref().and_then(|d| d.wallet.clone()))
-            {
-                Some(w_name) => match app.config.resolve_wallet_key(&w_name) {
-                    Ok(Some(private_key)) => {
-                        state.call_status = CallStatus::Executing;
-                        match caller.with_signer(private_key) {
-                            Ok(caller_with_signer) => {
-                                caller_with_signer
-                                    .call_write(&deployment.address, func, &params, None)
-                                    .await
-                            }
-                            Err(e) => Err(eyre::eyre!("Failed to set signer: {}", e)),
-                        }
-                    }
-                    Ok(None) => {
-                        state.call_status = CallStatus::Failed("Wallet not found".to_string());
-                        Err(eyre::eyre!("Private key not found for wallet: {}", w_name))
-                    }
-                    Err(e) => {
-                        state.call_status = CallStatus::Failed(format!("Wallet error: {}", e));
-                        Err(e)
-                    }
-                },
-                None => {
-                    state.call_status = CallStatus::Failed("No wallet configured".to_string());
-                    Err(eyre::eyre!(
-                        "Write transaction requires a wallet. Configure one in settings."
-                    ))
-                }
-            }
-        };
+        }
+        caller.call_read(&callable_address, &func, &params).await
+    } else {
+        let resolved_wallet = wallet_name
+            .or_else(|| app.config.defaults.as_ref().and_then(|d| d.wallet.clone()));
 
+        match resolved_wallet {
+            Some(w_name) => match app.config.resolve_wallet_key(&w_name) {
+                Ok(Some(private_key)) => {
+                    if let View::Interact(state) = &mut app.view {
+                        state.call_status = CallStatus::Executing;
+                    }
+                    match caller.with_signer(private_key) {
+                        Ok(caller_with_signer) => {
+                            caller_with_signer
+                                .call_write(&callable_address, &func, &params, None)
+                                .await
+                        }
+                        Err(e) => Err(eyre::eyre!("Failed to set signer: {}", e)),
+                    }
+                }
+                Ok(None) => {
+                    if let View::Interact(state) = &mut app.view {
+                        state.call_status = CallStatus::Failed("Wallet not found".to_string());
+                    }
+                    Err(eyre::eyre!("Private key not found for wallet: {}", w_name))
+                }
+                Err(e) => {
+                    if let View::Interact(state) = &mut app.view {
+                        state.call_status = CallStatus::Failed(format!("Wallet error: {}", e));
+                    }
+                    Err(e)
+                }
+            },
+            None => {
+                if let View::Interact(state) = &mut app.view {
+                    state.call_status = CallStatus::Failed("No wallet configured".to_string());
+                }
+                Err(eyre::eyre!(
+                    "Write transaction requires a wallet. Configure one in settings."
+                ))
+            }
+        }
+    };
+
+    // Update state with result
+    if let View::Interact(state) = &mut app.view {
         match result {
             Ok(CallResult::Read(outputs)) => {
                 state.call_status = CallStatus::Completed;
@@ -724,6 +906,67 @@ async fn execute_function_call(
             }
         }
     }
+}
+
+/// Prompt user to add an RPC URL for a specific chain ID
+/// Returns Ok(Some(rpc_url)) if added, Ok(None) if cancelled, Err on failure
+fn prompt_add_network_for_chain(
+    app: &mut App,
+    chain_id: u64,
+    network_name: &str,
+) -> Result<Option<String>> {
+    use crate::config::store_rpc_url;
+    use dialoguer::{Confirm, Input};
+
+    let message = format!(
+        "No RPC configured for {} (chain {}).\n\
+         Would you like to add one now?",
+        network_name, chain_id
+    );
+
+    let should_add = with_restored_terminal(|| {
+        Confirm::new()
+            .with_prompt(&message)
+            .default(true)
+            .interact()
+            .map_err(eyre::Error::from)
+    })?;
+
+    if !should_add {
+        return Ok(None);
+    }
+
+    let rpc_url: String = with_restored_terminal(|| {
+        Input::<String>::new()
+            .with_prompt(format!("Enter RPC URL for {} (chain {})", network_name, chain_id))
+            .validate_with(|input: &String| {
+                if input.starts_with("http://") || input.starts_with("https://") {
+                    Ok(())
+                } else {
+                    Err("URL must start with http:// or https://".to_string())
+                }
+            })
+            .interact()
+            .map_err(eyre::Error::from)
+    })?;
+
+    // Store in keychain
+    store_rpc_url(network_name, &rpc_url)?;
+
+    // Add to config
+    app.config.networks.insert(
+        network_name.to_string(),
+        crate::config::NetworkConfig {
+            rpc_url: format!("keychain:{}", network_name),
+            chain_id: Some(chain_id),
+            explorer_url: None,
+            explorer_api_key: None,
+        },
+    );
+
+    app.config.save()?;
+
+    Ok(Some(rpc_url))
 }
 
 async fn handle_missing_networks(app: &mut App, missing_chain_ids: &[u64]) -> Result<()> {
